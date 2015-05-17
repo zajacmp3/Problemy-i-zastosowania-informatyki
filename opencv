@@ -1,0 +1,150 @@
+#include "opencv2/opencv.hpp"
+
+using namespace cv;
+
+Mat binarizedImage;
+Mat grayImage;
+int threshold_value = 100;
+int max_value = 255;
+
+void wyswietl(string nazwa, int x, int y, Mat array)
+{
+	namedWindow(nazwa);
+	moveWindow(nazwa, x, y);
+	imshow(nazwa, array);
+}
+
+void Threshold(int pos, void* userdata) {
+	threshold(grayImage, binarizedImage, threshold_value, max_value, THRESH_BINARY);
+	imshow("Binarization", binarizedImage);
+}
+
+int main()
+{
+	Mat srcImage;
+	try {
+		srcImage = imread("Samples/ryba.jpg");
+	}
+	catch (Exception e) {
+		return(1); //error
+	}
+	wyswietl("Source image", 0, 0, srcImage);
+	//part2
+	
+	cvtColor(srcImage, grayImage, COLOR_BGR2GRAY);
+	wyswietl("Gray image", 300, 0, grayImage);
+	imwrite("Samples/Gray image.jpg", grayImage);
+
+	//part3
+	//Mat(Size size, int type);
+	Mat resizedImage(Size(100,100), srcImage.type());
+	resize(srcImage, resizedImage, Size(100, 100));
+	wyswietl("Resized Image", 600, 0, resizedImage);
+
+	//part4
+	Mat blurImage;
+	blur(srcImage, blurImage, Size(5, 5));
+	wyswietl("Blurred Image", 900, 0, blurImage);
+
+	//part5
+	Mat CannyImage;
+	Canny(srcImage, CannyImage, 2.0, 2.0);
+	wyswietl("Canny edges", 1200, 0, CannyImage);
+
+	//part6
+	Mat LaplacianImage;
+	Laplacian(grayImage, LaplacianImage, CV_16S, 3);
+	Mat scaledLaplacianImage;
+	convertScaleAbs(LaplacianImage, scaledLaplacianImage);
+	wyswietl("Laplacian Image", 1500, 0, CannyImage);
+
+
+	//PART 2 WYLICZANIE
+	int histSize = 256; int hist_w = 256; int hist_h = 256;
+	float range[2] = { 0, 256 };
+	const float* histRange = range;
+	Mat histImageGray(Size(hist_h, hist_w), CV_8UC3, Scalar(0, 0, 0));
+	Mat histogramGray;
+	calcHist(&grayImage, 1, 0, Mat(), histogramGray, 1, &histSize, &histRange);
+	normalize(histogramGray, histogramGray, range[0], range[1], NORM_MINMAX);
+	for (int i = 0; i < histSize; i++) {
+		int v = cvRound(histogramGray.at<float>(i));
+		line(histImageGray, Point(0,i), Point(v,i), Scalar(255,0,0), 1);
+	}
+	wyswietl("Histogram Gray", 0, 300, histImageGray);
+
+	//b
+	Mat equalizeHistImage;
+	equalizeHist(grayImage, equalizeHistImage);
+	wyswietl("Equalized Histogram Image", 300, 300, equalizeHistImage);
+	//c
+	Mat histogramEqualized;
+	Mat histogramEqualizedImage(Size(hist_h, hist_w), CV_8UC3, Scalar(0, 0, 0));
+	calcHist(&equalizeHistImage, 1, 0, Mat(), histogramEqualized, 1, &histSize, &histRange);
+	normalize(histogramEqualized, histogramEqualized, range[0], range[1], NORM_MINMAX);
+	for (int i = 0; i < histSize; i++) {
+		int v = cvRound(histogramEqualized.at<float>(i));
+		line(histogramEqualizedImage, Point(0, i), Point(v, i), Scalar(255, 0, 0), 1);
+	}
+	wyswietl("Histogram Equalized", 600, 300, histogramEqualizedImage);
+
+	//part3
+	Mat brightImage;
+	srcImage.copyTo(brightImage);
+	for (int i = 0; i < brightImage.cols; i++){
+		for (int j = 0; j < brightImage.rows; j++) {
+			Vec3b pixelColor = brightImage.at<Vec3b>(i, j);
+			int x = pixelColor[0] + 100;
+			int y = pixelColor[1] + 100;
+			int z = pixelColor[2] + 100;
+			if (x > 255)
+				x = 255;
+			if (y > 255)
+				y = 255;
+			if (z > 255)
+				z = 255;
+			Vec3b pixelColor2 = Vec3b(x, y, z);
+			brightImage.at<Vec3b>(i, j) = pixelColor2;
+		}
+	}
+	wyswietl("Bright Image", 900, 300, brightImage);
+
+	//PART4
+	//Threshold(1200, 300);
+
+	namedWindow("Binarization");
+	moveWindow("Binarization", 0, 600);
+	createTrackbar("Threshold value", "Binarization", &threshold_value, max_value, Threshold);
+	//imshow(nazwa, array);
+	Threshold(0, 0);
+
+	
+	waitKey(0);
+
+	//PART5
+	namedWindow("Src video");
+	moveWindow("Src video", 300, 600);
+
+	namedWindow("Dst video");
+	moveWindow("Dst video", 990, 600);
+
+	Mat srcFrame, dstFrame;
+
+	VideoCapture capture = VideoCapture("Samples/Dino.avi");
+	capture >> srcFrame;
+	VideoWriter writer = VideoWriter("Samples/Dino2.avi", -1, 25, srcFrame.size());
+
+	while (waitKey(40) != 27 && !srcFrame.empty()) {
+		srcFrame.copyTo(dstFrame);
+		writer << dstFrame;
+		imshow("Src video", srcFrame);
+		imshow("Dst video", dstFrame);
+		capture >> srcFrame;
+	}
+	waitKey(40) != 27;
+
+	return( 0 ); // no error	
+}
+
+
+
